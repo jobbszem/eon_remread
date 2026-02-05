@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+from datetime import datetime
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -10,17 +11,18 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
-from datetime import timedelta
 
 from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-UPDATE_INTERVAL = 3600  # 1 hour
+# Frissítés ezekben az órákban (0–23), perc 0. w1000 mintával: 6, 7, 9 + betöltéskor aktuális óra
+UPDATE_HOURS = [6, 7, 9]
 
 
 async def async_setup_entry(
@@ -46,10 +48,29 @@ async def async_setup_entry(
         _LOGGER,
         name=DOMAIN,
         update_method=async_update_data,
-        update_interval=timedelta(seconds=UPDATE_INTERVAL),
+        update_interval=None,  # Időpont-alapú frissítés (async_track_time_change)
     )
 
-    # Fetch initial data
+    # Frissítés órái: 6, 7, 9 + a betöltéskor aktuális óra (ha még nincs a listában)
+    hours = list(UPDATE_HOURS)
+    now = datetime.now()
+    if now.hour not in hours:
+        hours.append(now.hour)
+        hours.sort()
+
+    async def _refresh_at_schedule(_now):
+        await coordinator.async_request_refresh()
+
+    # Időpont-alapú frissítés: minden nap a megadott órákban, 0. perc, 0. másodperc
+    async_track_time_change(
+        hass,
+        _refresh_at_schedule,
+        hour=hours,
+        minute=0,
+        second=0,
+    )
+
+    # Kezdeti adat lekérése
     await coordinator.async_config_entry_first_refresh()
 
     entities = [

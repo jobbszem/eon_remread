@@ -7,7 +7,7 @@ Ez egy egyedi Home Assistant integráció (EON Remote Read / EON Távleolvasás)
 - Két szenzor automatikus létrehozása:
   - **Grid Energy Import** (A+ - Elhasznált energia) - `eon_remread.grid_energy_import`
   - **Grid Energy Export** (A- - Visszatermelt energia) - `eon_remread.grid_energy_export`
-- Automatikus frissítés óránként
+- Frissítés meghatározott időpontokban (alapértelmezetten 6:00, 7:00, 9:00 és a betöltéskor aktuális óra)
 - `total_increasing` state class az energia monitoring támogatásához
 - REST API integráció az EON portállal
 - Automatikus token kezelés és újrabejelentkezés
@@ -83,7 +83,7 @@ Az integráció minden frissítéskor az **utolsó 7 nap** adatait is lekéri, �
 
 ## Frissítési intervallum
 
-Az integráció alapértelmezetten óránként frissíti az adatokat. Ez az `UPDATE_INTERVAL` konstansban módosítható a `sensor.py` fájlban.
+Az integráció a megadott órákban frissíti az adatokat (alapértelmezetten 6:00, 7:00, 9:00, plusz a HA indulásakor aktuális óra). Az órák a `sensor.py` fájlban az `UPDATE_HOURS` listában módosíthatók (pl. `UPDATE_HOURS = [6, 7, 9, 12, 18]`).
 
 ## Biztonság
 
