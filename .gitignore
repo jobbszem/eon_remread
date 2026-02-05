@@ -1,0 +1,30 @@
+# Local / scratch
+notes
+test.py
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE (optional; remove if you want to commit shared settings)
+.idea/
+*.swp
+*.swo

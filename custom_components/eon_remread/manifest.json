@@ -1,0 +1,13 @@
+{
+    "domain": "eon_remread",
+    "name": "EON Portal Remote Read",
+    "codeowners": ["@jobbszem"],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/jobbszem/eon-remread",
+    "integration_type": "hub",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/jobbszem/eon-remread/issues",
+    "requirements": ["aiohttp>=3.8.0"],
+    "version": "0.1.0"
+}

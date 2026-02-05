@@ -1,0 +1,18 @@
+{
+    "config": {
+        "error": {
+            "invalid_auth": "Sikertelen bejelentkezés. Ellenőrizd a felhasználónevet és jelszót."
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "username": "Felhasználónév (Email)",
+                    "password": "Jelszó",
+                    "pod": "POD ID (opcionális)"
+                },
+                "description": "Add meg az EON portál bejelentkezési adataidat.",
+                "title": "EON Remote Read (Távleolvasás)"
+            }
+        }
+    }
+}
