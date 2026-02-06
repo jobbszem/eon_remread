@@ -256,7 +256,7 @@ class EonEnergyData:
         cum_export = 0.0
         has_cumulative = False
         first_cumulative_date = None
-        last_interval_date = None
+        last_cumulative_date = None
 
         for y, m, d, h in keys_sorted:
             s1, s2, last_num3, last_num4 = hourly[(y, m, d, h)]
@@ -277,22 +277,18 @@ class EonEnergyData:
                 has_cumulative = True
                 if first_cumulative_date is None:
                     first_cumulative_date = hour_start
+                last_cumulative_date = hour_start
 
-            has_interval = s1 > 0 or s2 > 0
-
-            if has_interval:
-                last_interval_date = hour_start
-
-            # Append if: we've already seen cumulative data AND there's consumption/export now
-            if has_cumulative and has_interval:
+# Append if: we've already seen cumulative data (include all hours)
+            if has_cumulative:
                 import_list.append((hour_start, round(cum_import, 3)))
                 export_list.append((hour_start, round(cum_export, 3)))
 
         _LOGGER.debug(
-            "Filtering stats: first_cumulative=%s, last_interval=%s, "
-            "total hours with cumul+interval=%d",
+            "Filtering stats: first_cumulative=%s, last_cumulative=%s, "
+            "total hours with cumulative data=%d",
             first_cumulative_date,
-            last_interval_date,
+            last_cumulative_date,
             len(import_list),
         )
 
