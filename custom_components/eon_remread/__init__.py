@@ -33,3 +33,23 @@ async def async_setup_entry(hass, entry):
     else:
         _LOGGER.error("Failed to authenticate with EON API")
         return False
+
+async def async_unload_entry(hass, entry):
+    """Unload a config entry."""
+    try:
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            entry, ["sensor"]
+        )
+    except Exception as e:
+        _LOGGER.error("Error unloading platforms: %s", e)
+        unload_ok = False
+    finally:
+        # Always close the API session, regardless of unload result
+        if entry.entry_id in hass.data.get(DOMAIN, {}):
+            api = hass.data[DOMAIN].pop(entry.entry_id)
+            try:
+                await api.close()
+            except Exception as e:
+                _LOGGER.error("Error closing API session: %s", e)
+
+    return unload_ok

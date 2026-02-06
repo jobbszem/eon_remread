@@ -85,7 +85,6 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                     title=f"EON Remote Read ({username})",
                 )
-                await self.hass.config_entries.async_reload(config_entry.entry_id)
                 return self.async_abort(reason="reconfigure_successful")
             else:
                 errors["base"] = "invalid_auth"
