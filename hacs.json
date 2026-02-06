@@ -1,8 +1,4 @@
 {
     "name": "EON Remote Read",
-    "content_type": "integration",
-    "country": ["HU"],
-    "domains": ["sensor"],
-    "short_description": "EON Portal Remote Read integration for Home Assistant",
-    "keywords": ["eon", "energy", "meter", "sensor"]
+    "country": ["HU"]
 }
