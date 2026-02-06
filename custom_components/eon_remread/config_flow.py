@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import logging
 
-import voluptuous as vol
+import voluptuous as vol # pyright: ignore[reportMissingImports]
 
-from homeassistant import config_entries
-import homeassistant.helpers.config_validation as cv
+from homeassistant import config_entries # pyright: ignore[reportMissingImports]
+import homeassistant.helpers.config_validation as cv # pyright: ignore[reportMissingImports]
 
 from .eon_remread import EonEnergyData
 
@@ -22,7 +22,6 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize config flow."""
-        pass
 
     async def async_step_user(self, user_input=None):
         """Invoked when a user initiates a flow via the user interface."""
@@ -33,7 +32,7 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             password = user_input[CONF_PASSWORD]
             pod = user_input.get(CONF_POD, "")
 
-            # Teszteljük a bejelentkezést
+            # Test authentication
             api = EonEnergyData(username, password, pod)
             success = await api.login()
 
@@ -64,14 +63,14 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry = self.hass.config_entries.async_get_entry(
             self.context["entry_id"]
         )
-        
+
         errors = {}
         if user_input is not None:
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
             pod = user_input.get(CONF_POD, "")
 
-            # Teszteljük az új bejelentkezési adatokat
+            # Test the new authentication credentials
             api = EonEnergyData(username, password, pod)
             success = await api.login()
 
@@ -89,7 +88,7 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 errors["base"] = "invalid_auth"
 
-        # Az aktuális értékek betöltése
+        # Load current values
         current_data = config_entry.data
         return self.async_show_form(
             step_id="reconfigure",

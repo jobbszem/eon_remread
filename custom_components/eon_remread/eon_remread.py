@@ -12,11 +12,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 import aiohttp
 
-from homeassistant.components.recorder.statistics import async_import_statistics
-from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.components.recorder.statistics import async_import_statistics # type: ignore
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData # type: ignore
 
 
-# (dt, num1, num2, num3_opt, num4_opt) - Num3=1.8.0 kumulált import, Num4=2.8.0 kumulált export
+# (dt, num1, num2, num3_opt, num4_opt) - Num3=1.8.0 cumulative import, Num4=2.8.0 cumulative export
 TimeseriesPoint = Tuple[datetime, float,
                         float, Optional[float], Optional[float]]
 
@@ -30,11 +30,11 @@ USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
               "AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/144.0.0.0 Safari/537.36")
 
-# Több nap lekérése a késleltetett adatok pótlásához (grafikonok)
+# Retrieve multiple days to backfill delayed data (for charts)
 BACKFILL_DAYS = 7
-# +A,-A = intervallum fogyasztás/visszatáplálás; DP_1-1:1.8.0*0 / 2.8.0*0 = kumulált (napi) érték
+# +A,-A = interval consumption/return; DP_1-1:1.8.0*0 / 2.8.0*0 = cumulative (daily) value
 MEAS_VAR_LIST = "+A,-A,DP_1-1:1.8.0*0,DP_1-1:2.8.0*0"
-# Egyezzen a HA entity_id-vel (domain.object_id)
+# Must match HA entity_id (domain.object_id)
 STATISTIC_ID_IMPORT = "eon_remread.grid_energy_import"
 STATISTIC_ID_EXPORT = "eon_remread.grid_energy_export"
 
@@ -55,8 +55,8 @@ class EonEnergyData:
         self.pod = pod
         self._hass = hass
         self.token: Optional[str] = None
-        self.total_import = 0.0  # A+ (elhasznált)
-        self.total_export = 0.0  # A- (visszatermelt)
+        self.total_import = 0.0  # A+ (consumed)
+        self.total_export = 0.0  # A- (exported)
         self.last_updated: Optional[datetime] = None
         self._session: Optional[aiohttp.ClientSession] = None
 
@@ -86,7 +86,7 @@ class EonEnergyData:
                 "x-requested-with": "X",
             }
 
-            # Jelszó Base64 kódolással küldjük
+            # Send password with Base64 encoding
             password_b64 = base64.b64encode(
                 self.password.encode("utf-8")
             ).decode("ascii")
@@ -189,15 +189,6 @@ class EonEnergyData:
             _LOGGER.error("Error requesting energy data: %s", e)
             return None
 
-    async def _get_energy_data(
-        self, start_date: datetime, end_date: datetime
-    ) -> tuple[float, float]:
-        """Get total import/export for a date range. Returns (import_kwh, export_kwh)."""
-        data = await self._request_energy_data(start_date, end_date)
-        if data is None:
-            return 0.0, 0.0
-        return self._parse_energy_data(data)
-
     def _parse_energy_data(self, data: dict) -> tuple[float, float]:
         """Parse API response to (total_import, total_export) in kWh."""
         total_a_plus = 0.0
@@ -211,7 +202,7 @@ class EonEnergyData:
     def _parse_energy_data_timeseries(self, data: dict) -> list[TimeseriesPoint]:
         """
         Parse API response to (dt, num1, num2, num3_opt, num4_opt) per interval.
-        Num3 = 1.8.0 kumulált import, Num4 = 2.8.0 kumulált export (nem minden sorban van).
+        Num3 = 1.8.0 cumulative import, Num4 = 2.8.0 cumulative export (not in every row).
         """
         results = data.get("d", {}).get("MeasDatas", {}).get("results", [])
         out: list[TimeseriesPoint] = []
@@ -241,10 +232,10 @@ class EonEnergyData:
         list[tuple[datetime, float]],
     ]:
         """
-        Óránkénti kumulált értékek: ha van Num3/Num4 (API kumulált) az adott pontban,
-        azt használjuk, különben Num1/Num2 összegéből számoljuk.
+        Hourly cumulative values: if there are Num3/Num4 (API cumulative) at the given point,
+        we use that, otherwise we calculate from the sum of Num1/Num2.
         """
-        # Óránként: (sum_num1, sum_num2, utolsó num3, utolsó num4) – az óra utolsó pontjában
+        # Per hour: (sum_num1, sum_num2, last num3, last num4) – at the last point of the hour
         hourly: dict[
             tuple[int, int, int, int],
             tuple[float, float, Optional[float], Optional[float]],
@@ -264,6 +255,8 @@ class EonEnergyData:
         cum_import = 0.0
         cum_export = 0.0
         has_cumulative = False
+        first_cumulative_date = None
+        last_interval_date = None
 
         for y, m, d, h in keys_sorted:
             s1, s2, last_num3, last_num4 = hourly[(y, m, d, h)]
@@ -279,16 +272,29 @@ class EonEnergyData:
                 y, m, d, h, 0, 0, 0, tzinfo=timezone.utc
             )
 
-            # Only append if we already have a cumulative value (DP_1*)
-            # AND there's interval consumption/export (A+/A-)
+            # Track when we first see a cumulative value (DP_1*)
             if last_num3 is not None or last_num4 is not None:
                 has_cumulative = True
-            # has_cumulative = last_num3 is not None or last_num4 is not None
+                if first_cumulative_date is None:
+                    first_cumulative_date = hour_start
+
             has_interval = s1 > 0 or s2 > 0
 
+            if has_interval:
+                last_interval_date = hour_start
+
+            # Append if: we've already seen cumulative data AND there's consumption/export now
             if has_cumulative and has_interval:
                 import_list.append((hour_start, round(cum_import, 3)))
                 export_list.append((hour_start, round(cum_export, 3)))
+
+        _LOGGER.debug(
+            "Filtering stats: first_cumulative=%s, last_interval=%s, "
+            "total hours with cumul+interval=%d",
+            first_cumulative_date,
+            last_interval_date,
+            len(import_list),
+        )
 
         return import_list, export_list
 
@@ -343,7 +349,12 @@ class EonEnergyData:
             )
 
     async def update(self) -> None:
-        """Update energy data from EON API and optionally backfill statistics."""
+        """Update energy data from EON API and optionally backfill statistics.
+
+        Requests data for BACKFILL_DAYS range in a single API call,
+        then processes it to get hourly cumulative values.
+        Final values (total_import/export) are taken from the last hour with data.
+        """
         if not self.token:
             _LOGGER.warning("No token available, attempting to login")
             if not await self.login():
@@ -354,36 +365,18 @@ class EonEnergyData:
         today_start = now.replace(hour=0, minute=0, second=1, microsecond=0)
         today_end = now.replace(hour=23, minute=59, second=59, microsecond=0)
 
-        # Mai összesítés a szenzorhoz
-        import_val, export_val = await self._get_energy_data(
-            today_start, today_end
+        # Single API call for the entire interval (today - BACKFILL_DAYS to today)
+        backfill_start = (today_start - timedelta(days=BACKFILL_DAYS)).replace(
+            hour=0, minute=0, second=1, microsecond=0
         )
-        self.total_import = import_val
-        self.total_export = export_val
-        self.last_updated = datetime.now()
 
-        # Több nap lekérése és statisztika import (grafikonok pótlása)
-        if self._hass:
-            all_timeseries: list[TimeseriesPoint] = []
-            for day_offset in range(BACKFILL_DAYS):
-                day_start = (today_start - timedelta(days=day_offset)).replace(
-                    hour=0, minute=0, second=1, microsecond=0
-                )
-                day_end = day_start.replace(
-                    hour=23, minute=59, second=59, microsecond=0
-                )
-                data = await self._request_energy_data(day_start, day_end)
-                if data:
-                    ts_count = len(self._parse_energy_data_timeseries(data))
-                    all_timeseries.extend(
-                        self._parse_energy_data_timeseries(data)
-                    )
-                    _LOGGER.debug(
-                        "Retrieved %d timeseries points for %s",
-                        ts_count,
-                        day_start.date(),
-                    )
-            _LOGGER.debug("Total timeseries points from API: %d", len(all_timeseries))
+        data = await self._request_energy_data(backfill_start, today_end)
+
+        if data:
+            all_timeseries = self._parse_energy_data_timeseries(data)
+            _LOGGER.debug(
+                "Retrieved %d timeseries points from API", len(all_timeseries))
+
             if all_timeseries:
                 all_timeseries.sort(key=lambda x: x[0])
                 import_hourly, export_hourly = self._build_hourly_cumulative(
@@ -394,21 +387,42 @@ class EonEnergyData:
                     len(import_hourly),
                     len(export_hourly),
                 )
-                await self._import_statistics(
-                    STATISTIC_ID_IMPORT,
-                    "EON Grid Energy Import",
-                    import_hourly,
-                )
-                await self._import_statistics(
-                    STATISTIC_ID_EXPORT,
-                    "EON Grid Energy Export",
-                    export_hourly,
-                )
+
+                # Today's summary from the last cumulative hour values
+                if import_hourly:
+                    self.total_import = import_hourly[-1][1]
+                else:
+                    self.total_import = 0.0
+                if export_hourly:
+                    self.total_export = export_hourly[-1][1]
+                else:
+                    self.total_export = 0.0
+
+                # Statistics import for charts (Home Assistant)
+                if self._hass:
+                    await self._import_statistics(
+                        STATISTIC_ID_IMPORT,
+                        "EON Grid Energy Import",
+                        import_hourly,
+                    )
+                    await self._import_statistics(
+                        STATISTIC_ID_EXPORT,
+                        "EON Grid Energy Export",
+                        export_hourly,
+                    )
+            else:
+                self.total_import = 0.0
+                self.total_export = 0.0
+        else:
+            self.total_import = 0.0
+            self.total_export = 0.0
+
+        self.last_updated = datetime.now()
 
         _LOGGER.info(
             "Updated energy data: Import=%.3f kWh, Export=%.3f kWh",
-            import_val,
-            export_val,
+            self.total_import,
+            self.total_export,
         )
 
     def get_total_import(self) -> float:

@@ -25,7 +25,7 @@ from . import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# Frissítés ezekben az órákban (0–23), perc 0. w1000 mintával: 6, 7, 9 + betöltéskor aktuális óra
+# Update at these hours (0–23), minute 0. w1000 pattern: 6, 7, 9 + current hour at load
 UPDATE_HOURS = [6, 7, 9]
 
 
@@ -55,7 +55,7 @@ async def async_setup_entry(
         update_interval=None,  # Időpont-alapú frissítés (async_track_time_change)
     )
 
-    # Frissítés órái: 6, 7, 9 + a betöltéskor aktuális óra (ha még nincs a listában)
+    # Update hours: 6, 7, 9 + the current hour at load (if not already present)
     hours = list(UPDATE_HOURS)
     now = datetime.now()
     if now.hour not in hours:
@@ -65,7 +65,7 @@ async def async_setup_entry(
     async def _refresh_at_schedule(_now):
         await coordinator.async_request_refresh()
 
-    # Időpont-alapú frissítés: minden nap a megadott órákban, 0. perc, 0. másodperc
+    # Time-based updates: every day at the specified hours, minute 0, second 0
     async_track_time_change(
         hass,
         _refresh_at_schedule,
@@ -74,7 +74,7 @@ async def async_setup_entry(
         second=0,
     )
 
-    # Kezdeti adat lekérése
+    # Initial data fetch
     await coordinator.async_config_entry_first_refresh()
 
     entities = [
@@ -86,7 +86,7 @@ async def async_setup_entry(
 
 
 class GridEnergyImportSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for grid energy import (A+ - elhasznált)."""
+    """Sensor for grid energy import (A+ - consumed)."""
 
     _attr_name = "Grid Energy Import"
     _attr_device_class = SensorDeviceClass.ENERGY
@@ -120,7 +120,7 @@ class GridEnergyImportSensor(CoordinatorEntity, SensorEntity):
 
 
 class GridEnergyExportSensor(CoordinatorEntity, SensorEntity):
-    """Sensor for grid energy export (A- - visszatermelt)."""
+    """Sensor for grid energy export (A- - exported)."""
 
     _attr_name = "Grid Energy Export"
     _attr_device_class = SensorDeviceClass.ENERGY

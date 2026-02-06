@@ -21,7 +21,7 @@ async def async_setup_entry(hass, entry):
 
     api = EonEnergyData(username, password, pod, hass)
 
-    # Teszteljük a bejelentkezést
+    # Test authentication
     success = await api.login()
 
     if success:
@@ -40,7 +40,7 @@ async def async_unload_entry(hass, entry):
         unload_ok = await hass.config_entries.async_unload_platforms(
             entry, ["sensor"]
         )
-    except Exception as e:
+    except (OSError, RuntimeError) as e:
         _LOGGER.error("Error unloading platforms: %s", e)
         unload_ok = False
     finally:
@@ -49,7 +49,7 @@ async def async_unload_entry(hass, entry):
             api = hass.data[DOMAIN].pop(entry.entry_id)
             try:
                 await api.close()
-            except Exception as e:
+            except (OSError, RuntimeError) as e:
                 _LOGGER.error("Error closing API session: %s", e)
 
     return unload_ok
