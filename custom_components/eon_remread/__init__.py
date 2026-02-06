@@ -23,7 +23,7 @@ async def async_setup_entry(hass, entry):
 
     # Teszteljük a bejelentkezést
     success = await api.login()
-    
+
     if success:
         hass.data[DOMAIN][entry.entry_id] = api
 

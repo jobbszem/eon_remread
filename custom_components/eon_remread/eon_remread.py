@@ -12,12 +12,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 import aiohttp
 
+from homeassistant.components.recorder.statistics import async_import_statistics
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+
+
 # (dt, num1, num2, num3_opt, num4_opt) - Num3=1.8.0 kumulált import, Num4=2.8.0 kumulált export
 TimeseriesPoint = Tuple[datetime, float,
                         float, Optional[float], Optional[float]]
 
-# from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
-# from homeassistant.components.recorder.statistics import async_import_statistics
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,8 +27,8 @@ BASE_URL = "https://e-portal.eon-hungaria.com"
 LOGIN_URL = f"{BASE_URL}/sap/opu/odata/sap/ZWB5_ONLINE_SRV/Login?sap-language=HU"
 DATA_URL = f"{BASE_URL}/sap/opu/odata/sap/ZWB5_W1000/MeasData"
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-               "AppleWebKit/537.36 (KHTML, like Gecko) "
-               "Chrome/144.0.0.0 Safari/537.36")
+              "AppleWebKit/537.36 (KHTML, like Gecko) "
+              "Chrome/144.0.0.0 Safari/537.36")
 
 # Több nap lekérése a késleltetett adatok pótlásához (grafikonok)
 BACKFILL_DAYS = 7
@@ -299,11 +301,6 @@ class EonEnergyData:
         """Import hourly cumulative statistics into HA for Energy dashboard."""
         if not self._hass or not hourly_data:
             return
-        from homeassistant.components.recorder.models import (
-            StatisticData,
-            StatisticMetaData,
-        )
-        from homeassistant.components.recorder.statistics import async_import_statistics
 
         statistics = [
             StatisticData(
