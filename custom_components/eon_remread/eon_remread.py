@@ -319,11 +319,12 @@ class EonEnergyData:
         metadata = StatisticMetaData(
             has_mean=False,
             has_sum=True,
-            mean_type=None,
+            mean_type=0,
             name=name,
             source="recorder",
             statistic_id=statistic_id,
             unit_of_measurement="kWh",
+            unit_class="energy",
         )
         try:
             async_import_statistics(self._hass, metadata, statistics)
