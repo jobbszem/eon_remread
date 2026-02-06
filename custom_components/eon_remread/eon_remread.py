@@ -35,8 +35,8 @@ BACKFILL_DAYS = 7
 # +A,-A = interval consumption/return; DP_1-1:1.8.0*0 / 2.8.0*0 = cumulative (daily) value
 MEAS_VAR_LIST = "+A,-A,DP_1-1:1.8.0*0,DP_1-1:2.8.0*0"
 # Must match HA entity_id (domain.object_id)
-STATISTIC_ID_IMPORT = "eon_remread.grid_energy_import"
-STATISTIC_ID_EXPORT = "eon_remread.grid_energy_export"
+STATISTIC_ID_IMPORT = "sensor.grid_energy_import"
+STATISTIC_ID_EXPORT = "sensor.grid_energy_export"
 
 
 class EonEnergyData:
