@@ -12,6 +12,15 @@
                 },
                 "description": "Enter your EON portal login credentials.",
                 "title": "EON Remote Read"
+            },
+            "reconfigure": {
+                "data": {
+                    "username": "Username (Email)",
+                    "password": "Password",
+                    "pod": "POD ID (optional)"
+                },
+                "description": "Update your EON portal login credentials.",
+                "title": "Reconfigure EON Remote Read"
             }
         }
     }

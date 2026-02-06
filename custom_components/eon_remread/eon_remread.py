@@ -300,6 +300,12 @@ class EonEnergyData:
     ) -> None:
         """Import hourly cumulative statistics into HA for Energy dashboard."""
         if not self._hass or not hourly_data:
+            _LOGGER.warning(
+                "Cannot import statistics for %s: hass=%s, hourly_data_count=%d",
+                statistic_id,
+                self._hass is not None,
+                len(hourly_data) if hourly_data else 0,
+            )
             return
 
         statistics = [
@@ -313,6 +319,7 @@ class EonEnergyData:
         metadata = StatisticMetaData(
             has_mean=False,
             has_sum=True,
+            mean_type=None,
             name=name,
             source="recorder",
             statistic_id=statistic_id,
@@ -321,7 +328,11 @@ class EonEnergyData:
         try:
             async_import_statistics(self._hass, metadata, statistics)
             _LOGGER.debug(
-                "Imported %d points for %s", len(statistics), statistic_id
+                "Imported %d points for %s (date range: %s to %s)",
+                len(statistics),
+                statistic_id,
+                hourly_data[0][0] if hourly_data else "N/A",
+                hourly_data[-1][0] if hourly_data else "N/A",
             )
         except (ValueError, TypeError) as ex:
             _LOGGER.exception(
@@ -362,13 +373,25 @@ class EonEnergyData:
                 )
                 data = await self._request_energy_data(day_start, day_end)
                 if data:
+                    ts_count = len(self._parse_energy_data_timeseries(data))
                     all_timeseries.extend(
                         self._parse_energy_data_timeseries(data)
                     )
+                    _LOGGER.debug(
+                        "Retrieved %d timeseries points for %s",
+                        ts_count,
+                        day_start.date(),
+                    )
+            _LOGGER.debug("Total timeseries points from API: %d", len(all_timeseries))
             if all_timeseries:
                 all_timeseries.sort(key=lambda x: x[0])
                 import_hourly, export_hourly = self._build_hourly_cumulative(
                     all_timeseries
+                )
+                _LOGGER.debug(
+                    "After _build_hourly_cumulative: import=%d points, export=%d points",
+                    len(import_hourly),
+                    len(export_hourly),
                 )
                 await self._import_statistics(
                     STATISTIC_ID_IMPORT,

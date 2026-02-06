@@ -12,6 +12,15 @@
                 },
                 "description": "Add meg az EON portál bejelentkezési adataidat.",
                 "title": "EON Remote Read (Távleolvasás)"
+            },
+            "reconfigure": {
+                "data": {
+                    "username": "Felhasználónév (Email)",
+                    "password": "Jelszó",
+                    "pod": "POD ID (opcionális)"
+                },
+                "description": "Frissítsd az EON portál bejelentkezési adataidat.",
+                "title": "EON Remote Read újrakonfigurálása"
             }
         }
     }

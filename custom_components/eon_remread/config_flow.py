@@ -21,6 +21,7 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self) -> None:
+        """Initialize config flow."""
         pass
 
     async def async_step_user(self, user_input=None):
@@ -56,4 +57,53 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_POD, default=""): cv.string,
             }),
             errors=errors
+        )
+
+    async def async_step_reconfigure(self, user_input=None):
+        """Handle reconfiguration of EON Remote Read."""
+        config_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        
+        errors = {}
+        if user_input is not None:
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
+            pod = user_input.get(CONF_POD, "")
+
+            # Teszteljük az új bejelentkezési adatokat
+            api = EonEnergyData(username, password, pod)
+            success = await api.login()
+
+            if success:
+                self.hass.config_entries.async_update_entry(
+                    config_entry,
+                    data={
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                        CONF_POD: pod,
+                    },
+                    title=f"EON Remote Read ({username})",
+                )
+                await self.hass.config_entries.async_reload(config_entry.entry_id)
+                return self.async_abort(reason="reconfigure_successful")
+            else:
+                errors["base"] = "invalid_auth"
+
+        # Az aktuális értékek betöltése
+        current_data = config_entry.data
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({
+                vol.Required(
+                    CONF_USERNAME, default=current_data.get(CONF_USERNAME)
+                ): cv.string,
+                vol.Required(
+                    CONF_PASSWORD, default=current_data.get(CONF_PASSWORD)
+                ): cv.string,
+                vol.Optional(
+                    CONF_POD, default=current_data.get(CONF_POD, "")
+                ): cv.string,
+            }),
+            errors=errors,
         )
