@@ -2,6 +2,7 @@
 notes
 test.py
 *.local
+eon_test_output_*.txt
 
 # Python
 __pycache__/

@@ -32,11 +32,11 @@ class EonRemreadConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
             pod = user_input.get(CONF_POD, "")
-            
+
             # Teszteljük a bejelentkezést
             api = EonEnergyData(username, password, pod)
             success = await api.login()
-            
+
             if success:
                 return self.async_create_entry(
                     title=f"EON Remote Read ({username})",

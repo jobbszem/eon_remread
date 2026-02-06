@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 
+"""
+EON Remote Read / EON Távleolvasás - Home Assistant integráció
+"""
+
 import logging
 from datetime import datetime
 
-from homeassistant.components.sensor import (
+from homeassistant.components.sensor import ( # type: ignore
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfEnergy
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.update_coordinator import (
+from homeassistant.const import UnitOfEnergy # type: ignore
+from homeassistant.core import HomeAssistant # type: ignore
+from homeassistant.helpers.entity_platform import AddEntitiesCallback # type: ignore
+from homeassistant.helpers.event import async_track_time_change # type: ignore
+from homeassistant.helpers.update_coordinator import ( # type: ignore
     CoordinatorEntity,
     DataUpdateCoordinator,
 )

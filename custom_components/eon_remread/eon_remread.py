@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
 
+"""
+EON Remote Read / EON Távleolvasás
+"""
+
 import base64
 import logging
 import re
-import aiohttp
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
+import aiohttp
 
 # (dt, num1, num2, num3_opt, num4_opt) - Num3=1.8.0 kumulált import, Num4=2.8.0 kumulált export
-TimeseriesPoint = Tuple[datetime, float, float, Optional[float], Optional[float]]
+TimeseriesPoint = Tuple[datetime, float,
+                        float, Optional[float], Optional[float]]
 
-#from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
-#from homeassistant.components.recorder.statistics import async_import_statistics
+# from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+# from homeassistant.components.recorder.statistics import async_import_statistics
 
 _LOGGER = logging.getLogger(__name__)
 
 BASE_URL = "https://e-portal.eon-hungaria.com"
 LOGIN_URL = f"{BASE_URL}/sap/opu/odata/sap/ZWB5_ONLINE_SRV/Login?sap-language=HU"
 DATA_URL = f"{BASE_URL}/sap/opu/odata/sap/ZWB5_W1000/MeasData"
+USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+               "AppleWebKit/537.36 (KHTML, like Gecko) "
+               "Chrome/144.0.0.0 Safari/537.36")
 
 # Több nap lekérése a késleltetett adatok pótlásához (grafikonok)
 BACKFILL_DAYS = 7
@@ -65,25 +73,17 @@ class EonEnergyData:
         """Login to EON API and get token."""
         try:
             session = await self._get_session()
-            
+
             headers = {
                 "accept": "application/json",
                 "accept-language": "en,hu;q=0.9,en-US;q=0.8",
                 "content-type": "application/json",
                 "origin": BASE_URL,
                 "referer": f"{BASE_URL}/ugyintezes/login",
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "user-agent": USER_AGENT,
                 "x-requested-with": "X",
             }
-            
-            cookies = {
-                "goto": "",
-                "system": "PXH",
-                "fb": "X",
-                "kau": "X",
-                "sap-usercontext": "sap-language=HU&sap-client=101",
-            }
-            
+
             # Jelszó Base64 kódolással küldjük
             password_b64 = base64.b64encode(
                 self.password.encode("utf-8")
@@ -104,15 +104,14 @@ class EonEnergyData:
                 "Partners": {"results": []},
                 "Message": {"results": []},
             }
-            
+
             async with session.post(
                 LOGIN_URL,
                 json=payload,
                 headers=headers,
-                cookies=cookies,
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
-                if response.status == 200:
+                if response.status == 201:
                     data = await response.json()
                     guid = data.get("d", {}).get("Guid")
                     if guid:
@@ -123,11 +122,12 @@ class EonEnergyData:
                         _LOGGER.error("Login response does not contain Guid")
                         return False
                 else:
-                    _LOGGER.error(f"Login failed with status {response.status}")
+                    _LOGGER.error("Login failed with status %s",
+                                  response.status)
                     return False
-                    
-        except Exception as e:
-            _LOGGER.error(f"Error during login: {e}")
+
+        except (aiohttp.ClientError, TimeoutError, ValueError) as e:
+            _LOGGER.error("Error during login: %s", e)
             return False
 
     def _parse_timestamp(self, date_str: str) -> Optional[datetime]:
@@ -164,7 +164,7 @@ class EonEnergyData:
                 "authorizationerp": f"Bearer {self.token}",
                 "mode": "no-cors",
                 "referer": f"{BASE_URL}/w1000/tavleolv",
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+                "user-agent": USER_AGENT,
                 "x-requested-with": "X",
             }
             async with session.get(
@@ -183,8 +183,8 @@ class EonEnergyData:
                         if retry_response.status == 200:
                             return await retry_response.json()
                 return None
-        except Exception as e:
-            _LOGGER.error(f"Error requesting energy data: {e}")
+        except (aiohttp.ClientError, TimeoutError, ValueError) as e:
+            _LOGGER.error("Error requesting energy data: %s", e)
             return None
 
     async def _get_energy_data(
@@ -261,6 +261,8 @@ class EonEnergyData:
         export_list: list[tuple[datetime, float]] = []
         cum_import = 0.0
         cum_export = 0.0
+        has_cumulative = False
+
         for y, m, d, h in keys_sorted:
             s1, s2, last_num3, last_num4 = hourly[(y, m, d, h)]
             if last_num3 is not None:
@@ -274,8 +276,18 @@ class EonEnergyData:
             hour_start = datetime(
                 y, m, d, h, 0, 0, 0, tzinfo=timezone.utc
             )
-            import_list.append((hour_start, round(cum_import, 3)))
-            export_list.append((hour_start, round(cum_export, 3)))
+
+            # Only append if we already have a cumulative value (DP_1*)
+            # AND there's interval consumption/export (A+/A-)
+            if last_num3 is not None or last_num4 is not None:
+                has_cumulative = True
+            # has_cumulative = last_num3 is not None or last_num4 is not None
+            has_interval = s1 > 0 or s2 > 0
+
+            if has_cumulative and has_interval:
+                import_list.append((hour_start, round(cum_import, 3)))
+                export_list.append((hour_start, round(cum_export, 3)))
+
         return import_list, export_list
 
     async def _import_statistics(
@@ -314,7 +326,7 @@ class EonEnergyData:
             _LOGGER.debug(
                 "Imported %d points for %s", len(statistics), statistic_id
             )
-        except Exception as ex:
+        except (ValueError, TypeError) as ex:
             _LOGGER.exception(
                 "Exception at async_import_statistics %s: %s",
                 statistic_id,

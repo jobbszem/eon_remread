@@ -226,26 +226,43 @@ class TestBuildHourlyCumulative:
     def test_single_hour_without_num3_num4(self, eon):
         # One 15-min point: use num1/num2 as cumulative for that hour
         base = datetime(2024, 2, 2, 10, 0, 0, tzinfo=timezone.utc)
-        timeseries = [(base, 2.0, 1.0, None, None)]
+        timeseries = [
+            (base, 2.0, 1.0, None, None)
+            ]
+        import_list, export_list = eon._build_hourly_cumulative(timeseries)
+        assert len(import_list) == 0
+        assert len(export_list) == 0
+        #assert import_list[0] == (base, 2.0)
+        #assert export_list[0] == (base, 1.0)
+
+    def test_two_hours_without_num3_num4(self, eon):
+        # One 15-min point: use num1/num2 as cumulative for that hour
+        base = datetime(2024, 2, 2, 10, 0, 0, tzinfo=timezone.utc)
+        timeseries = [
+            (base.replace(minute=0), 1.0, 0.5, 112.2, 90.3),
+            (base.replace(minute=15), 1.0, 0.5, None, None),
+            (base.replace(minute=30), 1.0, 0.5, None, None),
+            (base.replace(minute=45), 1.0, 0.5, None, None),
+            ]
         import_list, export_list = eon._build_hourly_cumulative(timeseries)
         assert len(import_list) == 1
         assert len(export_list) == 1
-        assert import_list[0] == (base, 2.0)
-        assert export_list[0] == (base, 1.0)
+        assert import_list[0] == (base, 112.2)
+        assert export_list[0] == (base, 90.3)
 
     def test_two_hours_cumulative_without_num3_num4(self, eon):
         base1 = datetime(2024, 2, 2, 10, 0, 0, tzinfo=timezone.utc)
         base2 = datetime(2024, 2, 2, 11, 0, 0, tzinfo=timezone.utc)
         timeseries = [
-            (base1, 1.0, 0.5, None, None),
+            (base1, 1.0, 0.5, 23.2, 20.1),
             (base2, 2.0, 1.0, None, None),
         ]
         import_list, export_list = eon._build_hourly_cumulative(timeseries)
         assert len(import_list) == 2
-        assert import_list[0] == (base1, 1.0)
-        assert import_list[1] == (base2, 3.0)
-        assert export_list[0] == (base1, 0.5)
-        assert export_list[1] == (base2, 1.5)
+        assert import_list[0] == (base1, 23.2)
+        assert import_list[1] == (base2, 25.2)
+        assert export_list[0] == (base1, 20.1)
+        assert export_list[1] == (base2, 21.1)
 
     def test_single_hour_with_num3_num4_used_as_cumulative(self, eon):
         base = datetime(2024, 2, 2, 10, 0, 0, tzinfo=timezone.utc)
@@ -260,12 +277,12 @@ class TestBuildHourlyCumulative:
             (base.replace(minute=0), 1.0, 0.5, None, None),
             (base.replace(minute=15), 1.0, 0.5, None, None),
             (base.replace(minute=30), 1.0, 0.5, None, None),
-            (base.replace(minute=45), 1.0, 0.5, None, None),
+            (base.replace(minute=45), 1.0, 0.5, 10, 8),
         ]
         import_list, export_list = eon._build_hourly_cumulative(timeseries)
         assert len(import_list) == 1
-        assert import_list[0] == (base, 4.0)
-        assert export_list[0] == (base, 2.0)
+        assert import_list[0] == (base, 10.0)
+        assert export_list[0] == (base, 8.0)
 
     def test_last_num3_num4_in_hour_used(self, eon):
         """When multiple points in same hour have Num3/Num4, last one wins."""
@@ -281,7 +298,7 @@ class TestBuildHourlyCumulative:
 
     def test_values_rounded_to_three_decimals(self, eon):
         base = datetime(2024, 2, 2, 10, 0, 0, tzinfo=timezone.utc)
-        timeseries = [(base, 1.11114, 2.22226, None, None)]
+        timeseries = [(base, 0.11114, 0.22226, 1.11114, 2.22226)]
         import_list, export_list = eon._build_hourly_cumulative(timeseries)
         assert import_list[0][1] == 1.111
         assert export_list[0][1] == 2.222

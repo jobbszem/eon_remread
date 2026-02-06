@@ -1,2 +1,2 @@
-# Development and testing (run from eon-next-main root)
+# Development and testing (run from eon_remread root)
 pytest>=7.0.0
