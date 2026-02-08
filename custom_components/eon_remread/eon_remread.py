@@ -59,6 +59,10 @@ class EonEnergyData:
         self.total_export = 0.0  # A- (exported)
         self.last_updated: Optional[datetime] = None
         self._session: Optional[aiohttp.ClientSession] = None
+        # Track last imported hourly timestamp to avoid re-importing same points
+        self._last_import_ts: Optional[datetime] = None
+        # Callback support for sensor updates
+        self._update_callbacks: list = []
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -421,6 +425,9 @@ class EonEnergyData:
             self.total_export,
         )
 
+        # Notify listeners (sensors) of the update
+        self._notify_listeners()
+
     def get_total_import(self) -> float:
         """Get total imported energy (A+) in kWh."""
         return self.total_import
@@ -432,3 +439,20 @@ class EonEnergyData:
     def get_last_updated(self) -> Optional[datetime]:
         """Get last update timestamp."""
         return self.last_updated
+
+    def add_update_listener(self, callback) -> None:
+        """Register a callback to be called when data is updated."""
+        self._update_callbacks.append(callback)
+
+    def remove_update_listener(self, callback) -> None:
+        """Unregister a callback."""
+        if callback in self._update_callbacks:
+            self._update_callbacks.remove(callback)
+
+    def _notify_listeners(self) -> None:
+        """Notify all registered listeners of data update."""
+        for callback in self._update_callbacks:
+            try:
+                callback()
+            except Exception as e:
+                _LOGGER.exception("Error calling update listener: %s", e)
