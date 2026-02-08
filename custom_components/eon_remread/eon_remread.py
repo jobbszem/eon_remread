@@ -239,6 +239,9 @@ class EonEnergyData:
         Hourly cumulative values: if there are Num3/Num4 (API cumulative) at the given point,
         we use that, otherwise we calculate from the sum of Num1/Num2.
         """
+
+        now = datetime.now(timezone.utc) 
+
         # Per hour: (sum_num1, sum_num2, last num3, last num4) – at the last point of the hour
         hourly: dict[
             tuple[int, int, int, int],
@@ -284,7 +287,7 @@ class EonEnergyData:
                 last_cumulative_date = hour_start
 
 # Append if: we've already seen cumulative data (include all hours)
-            if has_cumulative:
+            if has_cumulative and hour_start <= now:
                 import_list.append((hour_start, round(cum_import, 3)))
                 export_list.append((hour_start, round(cum_export, 3)))
 
